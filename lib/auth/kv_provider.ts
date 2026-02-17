@@ -79,6 +79,15 @@ export class KvAuthProvider implements AuthProvider {
     await this.kv.set(this.userKey(userId), row);
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    const row = await this.getUserById(userId);
+    if (!row) return;
+    await this.kv.atomic()
+      .delete(this.userKey(userId))
+      .delete(this.userEmailKey(row.email))
+      .commit();
+  }
+
   async createSession(userId: string, ttlMs: number): Promise<SessionRecord> {
     const createdAt = new Date();
     const expiresAt = new Date(createdAt.getTime() + ttlMs);

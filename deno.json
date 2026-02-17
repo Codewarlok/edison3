@@ -5,7 +5,9 @@
     "dev": "vite",
     "build": "vite build",
     "start": "deno serve -A _fresh/server.js",
-    "update": "deno run -A -r jsr:@fresh/update ."
+    "update": "deno run -A -r jsr:@fresh/update .",
+    "users:list": "deno run -A scripts/users.ts list",
+    "users:seed": "deno run -A scripts/users.ts seed-defaults"
   },
   "lint": {
     "rules": {

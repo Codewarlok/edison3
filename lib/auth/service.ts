@@ -60,6 +60,10 @@ export class AuthService {
     await this.provider.updateUserRoles(userId, roles);
   }
 
+  async deleteUser(userId: string): Promise<void> {
+    await this.provider.deleteUser(userId);
+  }
+
   can(user: PublicUser, permission: Permission): boolean {
     return hasPermission(user, permission);
   }

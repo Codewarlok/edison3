@@ -13,6 +13,7 @@ export interface AuthProvider {
   listUsers(): Promise<AuthUser[]>;
   createUser(input: CreateUserInput): Promise<AuthUser>;
   updateUserRoles(userId: string, roles: UserRole[]): Promise<void>;
+  deleteUser(userId: string): Promise<void>;
 
   createSession(userId: string, ttlMs: number): Promise<SessionRecord>;
   getSession(sessionId: string): Promise<SessionRecord | null>;
