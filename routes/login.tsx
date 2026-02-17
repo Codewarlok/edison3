@@ -10,12 +10,18 @@ export const handler = define.handlers({
     const password = String(form.get("password") ?? "").trim();
 
     if (!email || !password) {
-      return ctx.render({ error: "Completa email y contraseña" });
+      return new Response(null, {
+        status: 302,
+        headers: { location: "/login?error=" + encodeURIComponent("Completa email y contraseña") },
+      });
     }
 
     const login = await authService.login(email, password);
     if (!login) {
-      return ctx.render({ error: "Credenciales inválidas" }, { status: 401 });
+      return new Response(null, {
+        status: 302,
+        headers: { location: "/login?error=" + encodeURIComponent("Credenciales inválidas") },
+      });
     }
 
     const res = new Response(null, {
@@ -34,7 +40,8 @@ export const handler = define.handlers({
   },
 });
 
-export default define.page<typeof handler>(function LoginPage({ data, state }) {
+export default define.page<typeof handler>(function LoginPage({ url, state }) {
+  const error = url.searchParams.get("error");
   if (state.auth.user) {
     return (
       <div class="p-8">
@@ -51,7 +58,7 @@ export default define.page<typeof handler>(function LoginPage({ data, state }) {
       </Head>
       <form method="POST" class="bg-white border rounded-xl p-6 w-full max-w-md shadow-sm space-y-4">
         <h1 class="text-2xl font-bold">Login Edison</h1>
-        {data?.error && <p class="text-red-600 text-sm">{data.error}</p>}
+        {error && <p class="text-red-600 text-sm">{error}</p>}
         <div>
           <label class="block text-sm mb-1">Email</label>
           <input name="email" type="email" class="w-full border rounded px-3 py-2" required />
