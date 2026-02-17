@@ -27,4 +27,8 @@ const exampleLoggerMiddleware = define.middleware((ctx) => {
 app.use(exampleLoggerMiddleware);
 
 // Include file-system based routes here
-app.fsRoutes();
+await app.fsRoutes();
+
+if (import.meta.main) {
+  await app.listen();
+}

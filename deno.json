@@ -4,8 +4,13 @@
     "check": "deno fmt --check . && deno lint . && deno check",
     "dev": "vite",
     "build": "vite build",
-    "start": "deno serve -A _fresh/server.js",
-    "update": "deno run -A -r jsr:@fresh/update ."
+    "start": "deno serve -A --unstable-kv _fresh/server.js",
+    "update": "deno run -A -r jsr:@fresh/update .",
+    "users:list": "deno run -A --unstable-kv scripts/users.ts list",
+    "users:seed": "deno run -A --unstable-kv scripts/users.ts seed-defaults",
+    "users:create": "deno run -A --unstable-kv scripts/users.ts create",
+    "users:update-roles": "deno run -A --unstable-kv scripts/users.ts update-roles",
+    "users:delete": "deno run -A --unstable-kv scripts/users.ts delete"
   },
   "lint": {
     "rules": {
