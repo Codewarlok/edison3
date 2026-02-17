@@ -134,13 +134,56 @@ Esto habilita trazabilidad y métricas de proceso comercial.
 
 ---
 
-## 9) Orden de implementación recomendado (sprintable)
-1. Modelo de datos KV + índices + contratos TS.
-2. Endpoints API de lectura + patch seguimiento + historial.
-3. Kanban y tabla con filtros.
-4. Runner de backfill 2020→hoy con checkpoint.
-5. Dashboard de métricas base.
-6. (Luego) incremental diario + detección de diffs automáticos.
+## 9) Sistema de usuarios y permisos (implementación A + abstracción)
+
+### 9.1 Decisión
+Implementar **Auth propia en Deno KV** desde el inicio, con capa de abstracción para migrar luego a OAuth/SSO sin romper APIs.
+
+### 9.2 Modelo RBAC inicial
+Roles:
+- `admin`: gestión de usuarios, configuración, auditoría, operación completa.
+- `analyst`: operación comercial (kanban, notas, edición de licitaciones), lectura de auditoría.
+- `viewer`: solo lectura.
+
+Permisos base:
+- `users.read`, `users.write`
+- `licitaciones.read`, `licitaciones.write`
+- `kanban.write`
+- `backfill.run`
+- `audit.read`
+
+### 9.3 Abstracción para migración futura
+Contrato interno `AuthProvider` con operaciones:
+- usuarios: create/get/list/updateRoles
+- sesiones: create/get/delete
+
+Hoy: implementación `KvAuthProvider`.
+Mañana: `OAuthProvider` o `ExternalAuthProvider` sin cambiar rutas públicas.
+
+### 9.4 Endpoints iniciales
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+
+### 9.5 Seguridad mínima obligatoria
+- password hashing robusto (sin texto plano)
+- cookie de sesión `HttpOnly` + `SameSite` (+ `Secure` en producción)
+- bootstrap de primer admin por variables de entorno
+- autorización por permisos en endpoints sensibles
+- eventos de auditoría para cambios de usuarios/roles (siguiente iteración)
+
+---
+
+## 10) Orden de implementación recomendado (sprintable)
+1. **Auth/RBAC mínimo** + middleware de sesión + bootstrap admin.
+2. Modelo de datos KV + índices + contratos TS.
+3. Endpoints API de lectura + patch seguimiento + historial.
+4. Kanban y tabla con filtros (ya protegidos por permisos).
+5. Runner de backfill 2020→hoy con checkpoint.
+6. Dashboard de métricas base.
+7. (Luego) incremental diario + detección de diffs automáticos.
 
 ---
 
