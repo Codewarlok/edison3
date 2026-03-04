@@ -9,8 +9,8 @@ function usage() {
   console.log(`
 Uso:
   deno run -A scripts/users.ts list
-  deno run -A scripts/users.ts create --email=<email> --name=<nombre> --password=<clave> --roles=<admin|analyst|viewer[,..]>
-  deno run -A scripts/users.ts update-roles --email=<email> --roles=<admin|analyst|viewer[,..]>
+  deno run -A scripts/users.ts create --email=<email> --name=<nombre> --password=<clave> --roles=<admin|analyst[,..]>
+  deno run -A scripts/users.ts update-roles --email=<email> --roles=<admin|analyst[,..]>
   deno run -A scripts/users.ts delete --email=<email>
   deno run -A scripts/users.ts seed-defaults
 `);
@@ -23,10 +23,10 @@ function getFlag(name: string): string | null {
 }
 
 function parseRoles(value: string | null): UserRole[] {
-  if (!value) return ["viewer"];
+  if (!value) return ["analyst"];
   const out = value.split(",").map((v) => v.trim()).filter(Boolean) as UserRole[];
   for (const role of out) {
-    if (!["admin", "analyst", "viewer"].includes(role)) {
+    if (!["admin", "analyst"].includes(role)) {
       throw new Error(`Rol inválido: ${role}`);
     }
   }
@@ -80,14 +80,14 @@ async function seedDefaults() {
   const defaults = [
     { email: "admin@edison.local", name: "Administrador", password: "milanesadepollo", roles: ["admin"] as UserRole[] },
     { email: "analyst@edison.local", name: "Analista", password: "milanesa", roles: ["analyst"] as UserRole[] },
-    { email: "visit@edison.local", name: "Visitante", password: "clave123", roles: ["viewer"] as UserRole[] },
+    { email: "visit@edison.local", name: "Visitante", password: "clave123", roles: ["analyst"] as UserRole[] },
   ];
 
   for (const item of defaults) {
     const existing = await provider.getUserByEmail(item.email);
     if (existing) {
-      console.log(`Ya existe: ${item.email}`);
-      continue;
+      await provider.deleteUser(existing.id);
+      console.log(`Recreando: ${item.email}`);
     }
 
     const passwordHash = await hashPassword(item.password);
