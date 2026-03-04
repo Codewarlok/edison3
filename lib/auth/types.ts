@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "analyst" | "viewer";
+export type UserRole = "admin" | "analyst";
 
 export type Permission =
   | "users.read"
@@ -62,14 +62,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "backfill.run",
     "audit.read",
   ],
-  analyst: [
-    "licitaciones.read",
-    "licitaciones.write",
-    "kanban.write",
-  ],
-  viewer: [
-    "licitaciones.read",
-  ],
+  analyst: ["licitaciones.read", "licitaciones.write", "kanban.write"],
 };
 
 export function toPublicUser(user: AuthUser): PublicUser {
