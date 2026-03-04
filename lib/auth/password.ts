@@ -15,7 +15,11 @@ function fromBase64Url(value: string): Uint8Array {
   return out;
 }
 
-async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
+async function pbkdf2(
+  password: string,
+  salt: BufferSource,
+  iterations = ITERATIONS,
+): Promise<Uint8Array> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(password),
@@ -29,7 +33,7 @@ async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
       name: "PBKDF2",
       hash: "SHA-256",
       salt: salt as BufferSource,
-      iterations: ITERATIONS,
+      iterations,
     },
     keyMaterial,
     KEY_LEN * 8,
@@ -60,9 +64,9 @@ export async function verifyPassword(
   const iterations = Number(iterText);
   if (!Number.isFinite(iterations) || iterations <= 0) return false;
 
-  const salt = fromBase64Url(saltText);
+  const salt = new Uint8Array(fromBase64Url(saltText));
   const expected = fromBase64Url(hashText);
-  const actual = await pbkdf2(password, salt);
+  const actual = await pbkdf2(password, salt, iterations);
 
   return safeEqual(actual, expected);
 }

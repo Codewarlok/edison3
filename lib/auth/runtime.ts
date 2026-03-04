@@ -43,8 +43,8 @@ class DevDisabledAuthProvider implements AuthProvider {
     return Promise.resolve();
   }
 
-  createAuditEvent(_event: AuditEvent): Promise<void> {
-    return Promise.resolve();
+  async createAuditEvent(_event: AuditEvent): Promise<void> {
+    return;
   }
 }
 

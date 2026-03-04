@@ -3,12 +3,7 @@ import type { CreateAuditEventInput } from "@/lib/audit/types.ts";
 import type { AuthProvider, CreateUserInput } from "./provider.ts";
 import { SessionsRepository } from "./repo_sessions.ts";
 import { UsersRepository } from "./repo_users.ts";
-import type {
-  AuditEvent as AuthAuditEvent,
-  AuthUser,
-  SessionRecord,
-  UserRole,
-} from "./types.ts";
+import type { AuditEvent, AuthUser, SessionRecord, UserRole } from "./types.ts";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -143,7 +138,7 @@ export class KvAuthProvider implements AuthProvider {
     }
   }
 
-  async createAuditEvent(event: AuthAuditEvent): Promise<void> {
+  async createAuditEvent(event: AuditEvent): Promise<void> {
     await this.writeAudit({
       id: event.id,
       ts: event.timestamp,
