@@ -2,15 +2,7 @@ import { Head } from "fresh/runtime";
 import { define } from "@/utils.ts";
 import { requireRole } from "@/lib/auth/guards.ts";
 
-export const handler = define.handlers({
-  GET(ctx) {
-    const guard = requireRole(ctx.state, "admin");
-    if (guard) return guard;
-    return ctx.render();
-  },
-});
-
-export default define.page<typeof handler>(function AdminUsersPage({ state }) {
+function AdminUsersPage({ state }) {
   return (
     <main class="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10">
       <Head>
@@ -46,4 +38,16 @@ export default define.page<typeof handler>(function AdminUsersPage({ state }) {
       </div>
     </main>
   );
+}
+
+export const handler = define.handlers({
+  GET(ctx) {
+    const guard = requireRole(ctx.state, "admin");
+    if (guard) return guard;
+    return ctx.render(
+      <AdminUsersPage state={ctx.state} url={ctx.url} params={ctx.params} />,
+    );
+  },
 });
+
+export default define.page(AdminUsersPage);

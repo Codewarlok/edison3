@@ -93,3 +93,25 @@ Branch: `nanai-backend-auth-rbac`
   - `POST /api/auth/login` (analyst) => `200`
   - `GET /api/auth/me` (cookie analyst) => `200`
 - `deno check routes/login.tsx routes/api/auth/login.ts routes/api/auth/logout.ts routes/api/auth/me.ts` => PASS.
+
+## Bloqueador 5 (hotfix NO-GO dev): `/admin/users` devolvía 500 + lint `require-await`
+
+### Causa raíz
+1. `routes/admin/users.tsx` ejecutaba `ctx.render()` sin elemento JSX válido. En Fresh 2 esto lanza `Non-JSX element passed to: ctx.render()` y rompe `/admin/users` con 500.
+2. `lib/auth/runtime.ts` tenía `createAuditEvent` como `async` sin `await`, gatillando regla lint `require-await`.
+
+### Fix aplicado
+- `routes/admin/users.tsx`
+  - se alineó con el patrón de rutas SSR del proyecto (`routes/dashboard/admin.tsx`).
+  - `GET` ahora hace `ctx.render(<AdminUsersPage ... />)` para evitar el 500.
+  - se movió la página a `function AdminUsersPage(...)` (declaración hoisted) para que esté disponible al renderizar desde el handler.
+- `lib/auth/runtime.ts`
+  - `createAuditEvent` en `DevDisabledAuthProvider` dejó de ser `async`.
+  - implementación no-op explícita: `return Promise.resolve();`.
+
+### Evidencia
+- `deno lint routes/admin/users.tsx lib/auth/runtime.ts` => PASS.
+- `deno test lib/auth/password_test.ts lib/auth/guards_test.ts lib/auth/types_test.ts` => `7 passed, 0 failed`.
+- Smoke admin SSR:
+  - `POST /api/auth/login` (admin) => `200`.
+  - `GET /admin/users` con cookie admin => `200` (sin 500).
