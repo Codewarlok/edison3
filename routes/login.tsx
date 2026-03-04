@@ -61,7 +61,7 @@ export default define.page<typeof handler>(function LoginPage({ url, state }) {
   }
 
   return (
-    <div class="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div class="min-h-screen flex items-center justify-center bg-base-100 text-base-content p-4">
       <Head>
         <title>Login | Edison</title>
       </Head>
