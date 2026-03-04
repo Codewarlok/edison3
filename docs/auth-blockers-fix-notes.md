@@ -68,3 +68,28 @@ Branch: `nanai-backend-auth-rbac`
   - `POST /api/auth/login` => `200 OK`
   - `GET /api/auth/me` => `200 OK`
   - `POST /api/auth/logout` => `200 OK`
+
+## Bloqueador 4 (hotfix): contrato import/API roto en login SSR (`AUTH_COOKIE`/`SESSION_TTL_MS`)
+
+### Causa raíz
+- `routes/login.tsx` importaba `AUTH_COOKIE` y `SESSION_TTL_MS` desde `lib/auth/service.ts`.
+- Ese contrato ya no existe en `service.ts` (helpers de sesión viven en `lib/auth/session.ts`).
+- Impacto en QA: `deno task build` fallaba en SSR con `"AUTH_COOKIE" is not exported by "lib/auth/service.ts"`.
+
+### Fix aplicado
+- `routes/login.tsx`
+  - reemplazado import roto por `buildSessionCookie` + `getSessionTtlMs` desde `lib/auth/session.ts`.
+  - unificado contrato de cookie con el endpoint API (`/api/auth/login`).
+  - `Secure` condicionado por protocolo (`ctx.url.protocol === "https:"`).
+
+### Evidencia reproducible
+- `deno task build` => PASS (client + SSR).
+- `deno task users:seed` => `updated roles: admin@edison.local` y `updated roles: analyst@edison.local`.
+- Smoke HTTP:
+  - `POST /api/auth/login` (admin) => `200`
+  - `GET /api/auth/me` (cookie admin) => `200`
+  - `POST /api/auth/logout` => `200`
+  - `GET /api/auth/me` (post logout) => `401`
+  - `POST /api/auth/login` (analyst) => `200`
+  - `GET /api/auth/me` (cookie analyst) => `200`
+- `deno check routes/login.tsx routes/api/auth/login.ts routes/api/auth/logout.ts routes/api/auth/me.ts` => PASS.
