@@ -1,4 +1,4 @@
-import type { AuthUser, SessionRecord, UserRole } from "./types.ts";
+import type { AuditEvent, AuthUser, SessionRecord, UserRole } from "./types.ts";
 
 export interface CreateUserInput {
   email: string;
@@ -18,4 +18,6 @@ export interface AuthProvider {
   createSession(userId: string, ttlMs: number): Promise<SessionRecord>;
   getSession(sessionId: string): Promise<SessionRecord | null>;
   deleteSession(sessionId: string): Promise<void>;
+
+  createAuditEvent(event: AuditEvent): Promise<void>;
 }
