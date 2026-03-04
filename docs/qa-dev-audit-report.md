@@ -1,147 +1,71 @@
-# QA Dev Audit Report
+# QA Dev Re-Audit Report (post-hotfix)
 
-Fecha: 2026-03-04 (America/Santiago)  
-Rama auditada: `dev`  
-Base de trabajo: `/home/dio/.openclaw/workspace/tmp/edison3`
+- **Fecha:** 2026-03-04 (America/Santiago)
+- **Branch auditada:** `dev` @ `192912d`
+- **QA branch de entrega:** `nanai-qa-auth-rbac-e2e`
+- **Veredicto final:** **NO-GO**
 
-## 1) Estado general por bloque
+## 1) Preparación
 
-- **Auth (login admin/analyst, inválido, me cookie, logout revoca): FAIL**
-- **RBAC (analyst sin /admin/users, admin con acceso): FAIL**
-- **UI (theme toggle claro/oscuro persiste al recargar): FAIL (no validable por tooling en esta corrida)**
-- **Checks técnicos base: PARTIAL PASS**
-  - `deno lint` (scope razonable): PASS
-  - `deno test` auth relevantes: PASS
-  - smoke script: N/A (no existe script de smoke en repo)
+- Checkout y actualización de `dev` ejecutada con éxito (`git pull --rebase origin dev` -> fast-forward a `192912d`).
+- Seed de usuarios ejecutado:
+  - `admin@edison.local / admin123`
+  - `analyst@edison.local / analyst123`
 
-## 2) Evidencia (comandos y resultados)
+## 2) Matriz mínima auth/RBAC
 
-### 2.1 Preparación de rama
+Base URL validada: `http://localhost:5173`
 
-```bash
-git checkout dev && git pull --ff-only origin dev
-```
+| Caso | Esperado | Resultado | Evidencia |
+|---|---:|---:|---|
+| Login admin | 200 | ✅ 200 | `POST /api/auth/login` |
+| Login analyst | 200 | ✅ 200 | `POST /api/auth/login` |
+| Login inválido | 401 | ✅ 401 | `POST /api/auth/login` (password incorrecta) |
+| `me` con cookie válida | 200 | ✅ 200 | `GET /api/auth/me` con cookie admin |
+| Logout | 200 | ✅ 200 | `POST /api/auth/logout` |
+| `me` post-logout | 401 | ✅ 401 | `GET /api/auth/me` tras logout |
+| Admin `/admin/users` permitido (sin redirect a login) | 200/no login redirect | ❌ **500** | `GET /admin/users` con cookie admin -> `Internal server error` |
+| Analyst `/admin/users` denegado | redirect/forbidden | ✅ 302 | `Location: /forbidden?required=admin` |
 
-Resultado:
-- `Already on 'dev'`
-- `Already up to date.`
+### Hallazgo crítico en `/admin/users` (admin)
 
-### 2.2 Semilla/usuarios para prueba
+Error en runtime:
 
-```bash
-deno task users:seed
-```
-
-Resultado:
-- `updated roles: admin@edison.local`
-- `updated roles: analyst@edison.local`
-
-Se detectó que `users:seed` actualiza roles pero no password. Para asegurar credenciales QA:
-
-```bash
-deno task users:delete -- --email=admin@edison.local
-deno task users:create -- --email=admin@edison.local --name=Administrador --password=admin123 --roles=admin
-deno task users:delete -- --email=analyst@edison.local
-deno task users:create -- --email=analyst@edison.local --name=Analista --password=analyst123 --roles=analyst
-```
-
-Resultado: usuarios recreados correctamente.
-
-### 2.3 Auditoría funcional (vía servidor `deno task dev`)
-
-Servidor:
-```bash
-deno task dev
-# VITE v7.x ready at http://localhost:5173
-```
-
-Pruebas HTTP:
-
-```bash
-curl POST /api/auth/login (inválido)
-curl POST /api/auth/login (admin)
-curl GET  /api/auth/me (con cookie)
-curl GET  /admin/users (admin)
-curl POST /api/auth/logout
-curl GET  /api/auth/me (post logout)
-curl POST /api/auth/login (analyst)
-curl GET  /admin/users (analyst)
-```
-
-Status observados:
-- `invalid_login=401`
-- `admin_login=401`
-- `me_admin=401`
-- `admin_users=302`
-- `logout=200`
-- `me_after_logout=401`
-- `analyst_login=401`
-- `analyst_users=302` (`location=/login`)
-
-Conclusión funcional:
-- No fue posible validar login exitoso para admin/analyst en runtime `vite dev`.
-- En consecuencia no se pudo validar en forma positiva `me` autenticado ni acceso admin a `/admin/users`.
-
-### 2.4 Hallazgo técnico crítico asociado
-
-```bash
-deno task build
-```
-
-Falla de build SSR:
-- Archivo: `routes/login.tsx`
-- Error: `"AUTH_COOKIE" is not exported by "lib/auth/service.ts"`
+- `Error: No arguments passed to: ctx.render()`
+- Origen: `routes/admin/users.tsx` en handler `GET`, se llama `ctx.render()` sin props.
 
 Impacto:
-- Impide build productivo SSR (`deno task build` falla), por lo que el estado de integración en `dev` no está listo para liberar sin corrección.
 
-### 2.5 Checks técnicos base
+- Usuario admin autenticado no puede acceder a pantalla `/admin/users`.
+- Incumple criterio de aceptación RBAC de acceso permitido a admin.
 
-#### Lint (scope razonable)
+## 3) Theme toggle (persistencia al recargar)
 
-```bash
-deno lint lib/auth routes/api/auth routes/admin/users.tsx routes/_middleware.ts routes/login.tsx
-```
+### Estado de validación
 
-Resultado: `Checked 20 files` (PASS)
+- **Implementación observada en código:**
+  - `islands/ThemeToggle.tsx` guarda preferencia en `localStorage` (`edison-theme`) y actualiza `data-theme`.
+  - `routes/_app.tsx` incluye script de bootstrap que reaplica tema guardado al cargar.
+- **Validación manual UI real:** **parcial/no completada plenamente en esta corrida**.
+  - El browser tool de OpenClaw no estuvo disponible en esta sesión.
+  - Se validó la lógica de persistencia por revisión directa de código, pero falta evidencia visual interactiva (click + reload en navegador controlado por herramienta).
 
-#### Tests auth relevantes
+## 4) Checks razonables (lint/test auth)
 
-```bash
-deno test --unstable-kv lib/auth/guards_test.ts lib/auth/types_test.ts
-```
+- `deno test lib/auth/*_test.ts` -> ✅ **7 passed / 0 failed**
+- Lint focalizado (`deno lint ...`) -> ❌ falla existente:
+  - `lib/auth/runtime.ts`: regla `require-await` en `createAuditEvent` (método `async` sin `await`).
 
-Resultado:
-- `5 passed | 0 failed` (PASS)
+## 5) Bloqueadores remanentes
 
-#### Smoke script
+1. **CRÍTICO (GO blocker):** `/admin/users` retorna 500 para admin autenticado (`ctx.render()` sin argumentos).
+2. **Calidad (no funcional auth core, pero pendiente):** lint falla por `require-await` en `lib/auth/runtime.ts`.
+3. **Evidencia UI incompleta en esta ejecución:** falta prueba manual interactiva capturada del theme toggle (click + reload) por indisponibilidad de browser tool.
 
-Búsqueda:
-```bash
-rg -n "smoke" -S .
-```
+## 6) Conclusión
 
-Resultado: sin coincidencias (N/A)
+- Auth API core (login/me/logout) quedó **estable** en esta corrida.
+- RBAC para analyst en `/admin/users` (denegación) quedó **correcto**.
+- Acceso admin a `/admin/users` está **roto (500)**.
 
-## 3) Bloqueadores
-
-### Críticos
-1. **Build roto en SSR** por import inválido en `routes/login.tsx` (`AUTH_COOKIE` no exportado desde `lib/auth/service.ts`).
-2. **Flujo funcional auth/RBAC no validable en positivo** bajo runtime actual de auditoría (`deno task dev`), con login siempre 401.
-
-### No críticos
-1. No hay script smoke explícito para validación rápida post-merge.
-2. Dependencia de credenciales históricas en KV (seed actualiza roles, no password) dificulta reproducibilidad QA si no se recrean usuarios.
-
-## 4) Recomendación QA
-
-## **NO-GO**
-
-Motivo: existe bloqueador crítico de build SSR y no se pudo certificar funcionalmente auth/RBAC en condición de éxito end-to-end sobre rama `dev`.
-
-## 5) Siguiente paso sugerido para destrabar
-
-1. Corregir import en `routes/login.tsx` (usar fuente correcta para cookie/TTL o remover dependencia obsoleta).
-2. Re-ejecutar `deno task build` hasta PASS.
-3. Levantar runtime que ejecute rutas Fresh + API auth en entorno Deno completo y repetir matriz mínima auth/RBAC.
-4. Agregar smoke script básico para auth/RBAC/UI theme persistence.
+# **VEREDICTO: NO-GO**
