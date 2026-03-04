@@ -28,7 +28,7 @@ async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
     {
       name: "PBKDF2",
       hash: "SHA-256",
-      salt,
+      salt: salt as BufferSource,
       iterations: ITERATIONS,
     },
     keyMaterial,
@@ -51,7 +51,10 @@ function safeEqual(a: Uint8Array, b: Uint8Array): boolean {
   return out === 0;
 }
 
-export async function verifyPassword(password: string, encoded: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  encoded: string,
+): Promise<boolean> {
   const [alg, iterText, saltText, hashText] = encoded.split("$");
   if (alg !== "pbkdf2") return false;
   const iterations = Number(iterText);

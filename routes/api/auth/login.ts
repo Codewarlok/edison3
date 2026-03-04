@@ -1,5 +1,5 @@
-import { authService } from "@/lib/auth/runtime.ts";
-import { AUTH_COOKIE, SESSION_TTL_MS } from "@/lib/auth/service.ts";
+import { auditService, authService } from "@/lib/auth/runtime.ts";
+import { buildSessionCookie, getSessionTtlMs } from "@/lib/auth/session.ts";
 import { define } from "@/utils.ts";
 
 export const handler = define.handlers({
@@ -11,13 +11,28 @@ export const handler = define.handlers({
 
     const login = await authService.login(email, password);
     if (!login) {
+      await auditService.log({
+        type: "auth.login.failed",
+        email: String(email).toLowerCase(),
+      });
       return Response.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
+
+    await auditService.log({
+      type: "auth.login.success",
+      userId: login.user.id,
+      email: login.user.email,
+      sessionId: login.sessionId,
+    });
 
     const res = Response.json({ user: login.user });
     res.headers.append(
       "set-cookie",
-      `${AUTH_COOKIE}=${login.sessionId}; HttpOnly; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}; SameSite=Lax`,
+      buildSessionCookie(
+        login.sessionId,
+        getSessionTtlMs(),
+        ctx.url.protocol === "https:",
+      ),
     );
     return res;
   },

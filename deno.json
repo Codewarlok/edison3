@@ -7,7 +7,8 @@
     "start": "deno serve -A --unstable-kv _fresh/server.js",
     "update": "deno run -A -r jsr:@fresh/update .",
     "users:list": "deno run -A --unstable-kv scripts/users.ts list",
-    "users:seed": "deno run -A --unstable-kv scripts/users.ts seed-defaults",
+    "users:seed": "deno run -A --unstable-kv scripts/users_seed.ts",
+    "users:migrate-pocketbase": "deno run -A --unstable-kv scripts/migrate_pocketbase_auth.ts",
     "users:create": "deno run -A --unstable-kv scripts/users.ts create",
     "users:update-roles": "deno run -A --unstable-kv scripts/users.ts update-roles",
     "users:delete": "deno run -A --unstable-kv scripts/users.ts delete"
@@ -25,6 +26,7 @@
   ],
   "imports": {
     "@/": "./",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
     "fresh": "jsr:@fresh/core@^2.2.0",
     "preact": "npm:preact@^10.27.2",
     "@preact/signals": "npm:@preact/signals@^2.5.0",
@@ -38,7 +40,8 @@
       "dom",
       "dom.asynciterable",
       "dom.iterable",
-      "deno.ns"
+      "deno.ns",
+      "deno.unstable"
     ],
     "jsx": "precompile",
     "jsxImportSource": "preact",
