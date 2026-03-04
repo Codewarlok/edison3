@@ -18,10 +18,7 @@ export const handler = define.handlers({
     }
 
     const res = Response.json({ ok: true });
-    res.headers.append(
-      "set-cookie",
-      clearSessionCookie(ctx.url.protocol === "https:"),
-    );
+    res.headers.append("set-cookie", clearSessionCookie());
     return res;
   },
 });

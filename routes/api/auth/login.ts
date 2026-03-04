@@ -29,11 +29,7 @@ export const handler = define.handlers({
       const res = Response.json({ user: login.user });
       res.headers.append(
         "set-cookie",
-        buildSessionCookie(
-          login.sessionId,
-          getSessionTtlMs(),
-          ctx.url.protocol === "https:",
-        ),
+        buildSessionCookie(login.sessionId, getSessionTtlMs()),
       );
       return res;
     } catch (_error) {

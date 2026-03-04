@@ -1,6 +1,6 @@
 import { Head } from "fresh/runtime";
 import { authService } from "@/lib/auth/runtime.ts";
-import { AUTH_COOKIE, SESSION_TTL_MS } from "@/lib/auth/service.ts";
+import { buildSessionCookie, getSessionTtlMs } from "@/lib/auth/session.ts";
 import { define } from "@/utils.ts";
 import LoginForm from "@/islands/LoginForm.tsx";
 
@@ -36,12 +36,14 @@ export const handler = define.handlers({
 
       res.headers.append(
         "set-cookie",
-        `${AUTH_COOKIE}=${login.sessionId}; HttpOnly; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}; SameSite=Lax`,
+        buildSessionCookie(login.sessionId, getSessionTtlMs()),
       );
 
       return res;
     } catch (_error) {
-      return buildErrorRedirect("No pudimos autenticarte ahora. Intenta nuevamente en unos minutos.");
+      return buildErrorRedirect(
+        "No pudimos autenticarte ahora. Intenta nuevamente en unos minutos.",
+      );
     }
   },
 });
