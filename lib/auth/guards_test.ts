@@ -29,8 +29,8 @@ Deno.test("requireRole allows matching role", () => {
   assertEquals(result, null);
 });
 
-Deno.test("requireRole forbids non-matching role", async () => {
+Deno.test("requireRole redirects on non-matching role", () => {
   const result = requireRole(makeState(["analyst"]), "admin");
-  assertEquals(result?.status, 403);
-  assertEquals(await result?.text(), "Forbidden");
+  assertEquals(result?.status, 302);
+  assertEquals(result?.headers.get("location")?.startsWith("/forbidden"), true);
 });

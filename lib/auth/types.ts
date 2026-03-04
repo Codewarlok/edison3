@@ -62,11 +62,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "backfill.run",
     "audit.read",
   ],
-  analyst: [
-    "licitaciones.read",
-    "licitaciones.write",
-    "kanban.write",
-  ],
+  analyst: ["licitaciones.read", "licitaciones.write", "kanban.write"],
 };
 
 export function toPublicUser(user: AuthUser): PublicUser {

@@ -6,6 +6,7 @@ function AdminPage({ state }) {
     <main class="p-8">
       <h1 class="text-3xl font-bold">Bienvenido, Administrador</h1>
       <p class="mt-2">Hola {state.auth.user?.displayName}. Esta vista es exclusiva para rol admin.</p>
+      <a href="/admin/users" class="inline-block mt-4 text-blue-600 underline">Administrar usuarios</a>
     </main>
   );
 }

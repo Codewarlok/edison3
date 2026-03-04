@@ -31,7 +31,10 @@ export function requireRole(state: AuthState, role: UserRole): Response | null {
   }
 
   if (!user.roles.includes(role)) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response(null, {
+      status: 302,
+      headers: { location: `/forbidden?required=${encodeURIComponent(role)}` },
+    });
   }
 
   return null;
@@ -50,7 +53,10 @@ export function requirePermission(
   }
 
   if (!hasPermission(user, permission)) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response(null, {
+      status: 302,
+      headers: { location: "/forbidden" },
+    });
   }
 
   return null;
