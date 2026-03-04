@@ -13,6 +13,10 @@ export const handler = define.handlers({
       return new Response(null, { status: 302, headers: { location: "/dashboard/analyst" } });
     }
 
-    return new Response(null, { status: 302, headers: { location: "/dashboard/visit" } });
+    if (user.roles.includes("viewer")) {
+      return new Response(null, { status: 302, headers: { location: "/dashboard/visit" } });
+    }
+
+    return new Response(null, { status: 302, headers: { location: "/forbidden" } });
   },
 });

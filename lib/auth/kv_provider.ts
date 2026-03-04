@@ -1,5 +1,5 @@
 import type { AuthProvider, CreateUserInput } from "./provider.ts";
-import type { AuthUser, SessionRecord, UserRole } from "./types.ts";
+import type { AuditEvent, AuthUser, SessionRecord, UserRole } from "./types.ts";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -22,6 +22,10 @@ export class KvAuthProvider implements AuthProvider {
 
   private sessionKey(id: string) {
     return ["codex", "auth", "sessions", id] as const;
+  }
+
+  private auditKey(id: string) {
+    return ["codex", "auth", "audit", id] as const;
   }
 
   async getUserByEmail(email: string): Promise<AuthUser | null> {
@@ -108,5 +112,9 @@ export class KvAuthProvider implements AuthProvider {
 
   async deleteSession(sessionId: string): Promise<void> {
     await this.kv.delete(this.sessionKey(sessionId));
+  }
+
+  async createAuditEvent(event: AuditEvent): Promise<void> {
+    await this.kv.set(this.auditKey(event.id), event);
   }
 }

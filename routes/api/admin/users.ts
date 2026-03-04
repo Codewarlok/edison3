@@ -24,7 +24,7 @@ export const handler = define.handlers({
       email: body.email,
       displayName: body.displayName,
       password: body.password,
-      roles: (body.roles ?? ["viewer"]) as UserRole[],
+      roles: (body.roles ?? ["analyst"]) as UserRole[],
     });
 
     return Response.json({ user: created }, { status: 201 });

@@ -1,7 +1,8 @@
 import { KvAuthProvider } from "./kv_provider.ts";
 import type { AuthProvider, CreateUserInput } from "./provider.ts";
+import { AuditService } from "./audit.ts";
 import { AuthService } from "./service.ts";
-import type { AuthUser, SessionRecord, UserRole } from "./types.ts";
+import type { AuditEvent, AuthUser, SessionRecord, UserRole } from "./types.ts";
 
 const hasKv = typeof Deno !== "undefined" && typeof Deno.openKv === "function";
 
@@ -41,11 +42,16 @@ class DevDisabledAuthProvider implements AuthProvider {
   async deleteSession(_sessionId: string): Promise<void> {
     return;
   }
+
+  async createAuditEvent(_event: AuditEvent): Promise<void> {
+    return;
+  }
 }
 
 const kv = hasKv ? await Deno.openKv() : null;
 const provider = hasKv ? new KvAuthProvider(kv!) : new DevDisabledAuthProvider();
 export const authService = new AuthService(provider);
+export const auditService = new AuditService(provider);
 
 if (hasKv) {
   const bootstrapEmail = Deno.env.get("EDISON_ADMIN_EMAIL");
