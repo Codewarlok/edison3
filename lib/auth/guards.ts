@@ -22,13 +22,19 @@ export function requireRole(state: State, role: UserRole): Response | null {
   }
 
   if (!user.roles.includes(role)) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response(null, {
+      status: 302,
+      headers: { location: `/forbidden?required=${encodeURIComponent(role)}` },
+    });
   }
 
   return null;
 }
 
-export function requirePermission(state: State, permission: Parameters<typeof authService.can>[1]): Response | null {
+export function requirePermission(
+  state: State,
+  permission: Parameters<typeof authService.can>[1],
+): Response | null {
   const user = state.auth.user;
   if (!user) {
     return new Response(null, {
@@ -38,7 +44,10 @@ export function requirePermission(state: State, permission: Parameters<typeof au
   }
 
   if (!authService.can(user, permission)) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response(null, {
+      status: 302,
+      headers: { location: "/forbidden" },
+    });
   }
 
   return null;

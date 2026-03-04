@@ -37,6 +37,16 @@ export interface SessionRecord {
   expiresAt: string;
 }
 
+export interface AuditEvent {
+  id: string;
+  type: "auth.login.success" | "auth.login.failed" | "auth.logout";
+  userId?: string;
+  email?: string;
+  sessionId?: string;
+  timestamp: string;
+  meta?: Record<string, unknown>;
+}
+
 export interface SessionWithUser {
   session: SessionRecord;
   user: PublicUser;
@@ -56,9 +66,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "licitaciones.read",
     "licitaciones.write",
     "kanban.write",
-    "audit.read",
   ],
-  viewer: ["licitaciones.read"],
+  viewer: [
+    "licitaciones.read",
+  ],
 };
 
 export function toPublicUser(user: AuthUser): PublicUser {
@@ -66,7 +77,10 @@ export function toPublicUser(user: AuthUser): PublicUser {
   return rest;
 }
 
-export function hasPermission(user: PublicUser, permission: Permission): boolean {
+export function hasPermission(
+  user: PublicUser,
+  permission: Permission,
+): boolean {
   const all = new Set<Permission>();
   for (const role of user.roles) {
     for (const p of ROLE_PERMISSIONS[role]) all.add(p);
