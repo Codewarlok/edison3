@@ -1,7 +1,6 @@
 import { AuditService } from "./audit.ts";
 import { KvAuthProvider } from "./kv_provider.ts";
 import type { AuthProvider, CreateUserInput } from "./provider.ts";
-import { AuditService } from "./audit.ts";
 import { AuthService } from "./service.ts";
 import type { AuditEvent, AuthUser, SessionRecord, UserRole } from "./types.ts";
 
@@ -41,10 +40,6 @@ class DevDisabledAuthProvider implements AuthProvider {
   }
 
   deleteSession(_sessionId: string): Promise<void> {
-    return Promise.resolve();
-  }
-
-  createAuditEvent(_event: AuditEvent): Promise<void> {
     return Promise.resolve();
   }
 
