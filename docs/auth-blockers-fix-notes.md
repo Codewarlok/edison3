@@ -42,3 +42,29 @@ Branch: `nanai-backend-auth-rbac`
 ### Evidencia
 - `deno check lib/auth/password.ts` => PASS.
 - `deno test lib/auth/password_test.ts lib/auth/guards_test.ts lib/auth/types_test.ts` => `7 passed, 0 failed`.
+
+## Bloqueador 3 (crítico QA): runtime crash `Identifier 'AuditService' has already been declared`
+
+### Causa raíz
+- Merge parcial en `lib/auth/runtime.ts` dejó imports/métodos duplicados:
+  - `import { AuditService }` declarado dos veces.
+  - `createAuditEvent()` duplicado en `DevDisabledAuthProvider`.
+- Merge conflict en `lib/auth/kv_provider.ts` y `lib/auth/password.ts` mantenía código duplicado/inconsistente y podía reintroducir errores de build/runtime.
+
+### Fix aplicado
+- `lib/auth/runtime.ts`
+  - removida declaración duplicada de `AuditService`.
+  - consolidado `createAuditEvent()` en una sola implementación no-op para modo sin KV.
+- `lib/auth/kv_provider.ts`
+  - resuelto merge conflict y eliminada implementación duplicada de `createAuditEvent()`.
+  - se mantiene ruta única de auditoría via `AuditEventsRepository`.
+- `lib/auth/password.ts`
+  - resuelto merge conflict conservando `iterations` dinámico y `salt` tipado correctamente.
+
+### Evidencia
+- `deno check main.ts` => PASS.
+- `deno task dev` inicia sin crash (sin `Identifier 'AuditService' has already been declared`).
+- Smoke HTTP:
+  - `POST /api/auth/login` => `200 OK`
+  - `GET /api/auth/me` => `200 OK`
+  - `POST /api/auth/logout` => `200 OK`
