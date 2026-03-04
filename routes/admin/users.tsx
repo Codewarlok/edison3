@@ -6,7 +6,7 @@ export const handler = define.handlers({
   GET(ctx) {
     const guard = requireRole(ctx.state, "admin");
     if (guard) return guard;
-    return ctx.render();
+    return ctx.render({});
   },
 });
 
