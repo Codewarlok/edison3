@@ -1,21 +1,16 @@
 import { authService } from "@/lib/auth/runtime.ts";
-import { AUTH_COOKIE } from "@/lib/auth/service.ts";
+import { AUTH_COOKIE, getCookieValue } from "@/lib/auth/session.ts";
 import { define } from "@/utils.ts";
-
-function getCookieValue(cookieHeader: string, name: string): string | null {
-  const part = cookieHeader
-    .split(";")
-    .map((v) => v.trim())
-    .find((v) => v.startsWith(`${name}=`));
-
-  if (!part) return null;
-  return decodeURIComponent(part.slice(name.length + 1));
-}
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === "/" || pathname === "/login") return true;
-  if (pathname.startsWith("/static") || pathname.startsWith("/assets")) return true;
-  if (pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/logout")) return true;
+  if (pathname.startsWith("/static") || pathname.startsWith("/assets")) {
+    return true;
+  }
+  if (
+    pathname.startsWith("/api/auth/login") ||
+    pathname.startsWith("/api/auth/logout")
+  ) return true;
   return false;
 }
 
@@ -34,6 +29,9 @@ export const handler = define.middleware(async (ctx) => {
 
   const pathname = ctx.url.pathname;
   if (!isPublicPath(pathname) && !user) {
+    if (pathname.startsWith("/api/")) {
+      return Response.json({ error: "UNAUTHORIZED" }, { status: 401 });
+    }
     return new Response(null, { status: 302, headers: { location: "/login" } });
   }
 
