@@ -1,5 +1,5 @@
 import { authService } from "@/lib/auth/runtime.ts";
-import { AUTH_COOKIE, SESSION_TTL_MS } from "@/lib/auth/service.ts";
+import { buildSessionCookie, getSessionTtlMs } from "@/lib/auth/session.ts";
 import { define } from "@/utils.ts";
 
 export const handler = define.handlers({
@@ -17,7 +17,7 @@ export const handler = define.handlers({
     const res = Response.json({ user: login.user });
     res.headers.append(
       "set-cookie",
-      `${AUTH_COOKIE}=${login.sessionId}; HttpOnly; Path=/; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}; SameSite=Lax`,
+      buildSessionCookie(login.sessionId, getSessionTtlMs()),
     );
     return res;
   },
