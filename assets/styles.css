@@ -1,4 +1,64 @@
 @import "tailwindcss";
+@plugin "daisyui";
+
+@plugin "daisyui/theme" {
+  name: "edison-light";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+
+  --color-base-100: oklch(98% 0.004 247);
+  --color-base-200: oklch(95% 0.008 247);
+  --color-base-300: oklch(90% 0.013 247);
+  --color-base-content: oklch(27% 0.02 255);
+
+  --color-primary: oklch(63% 0.17 154);
+  --color-primary-content: oklch(18% 0.03 154);
+  --color-secondary: oklch(58% 0.08 262);
+  --color-secondary-content: oklch(96% 0.01 262);
+  --color-accent: oklch(62% 0.16 210);
+  --color-accent-content: oklch(98% 0.01 210);
+  --color-neutral: oklch(30% 0.02 248);
+  --color-neutral-content: oklch(96% 0.01 248);
+  --color-info: oklch(66% 0.13 240);
+  --color-success: oklch(71% 0.15 154);
+  --color-warning: oklch(79% 0.15 83);
+  --color-error: oklch(62% 0.2 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+}
+
+@plugin "daisyui/theme" {
+  name: "edison-dark";
+  default: false;
+  prefersdark: true;
+  color-scheme: dark;
+
+  --color-base-100: oklch(20% 0.02 255);
+  --color-base-200: oklch(24% 0.02 255);
+  --color-base-300: oklch(28% 0.02 255);
+  --color-base-content: oklch(94% 0.01 255);
+
+  --color-primary: oklch(72% 0.16 154);
+  --color-primary-content: oklch(20% 0.03 154);
+  --color-secondary: oklch(70% 0.1 262);
+  --color-secondary-content: oklch(18% 0.02 262);
+  --color-accent: oklch(74% 0.14 210);
+  --color-accent-content: oklch(18% 0.02 210);
+  --color-neutral: oklch(34% 0.02 255);
+  --color-neutral-content: oklch(95% 0.01 255);
+  --color-info: oklch(72% 0.12 240);
+  --color-success: oklch(76% 0.14 154);
+  --color-warning: oklch(82% 0.14 83);
+  --color-error: oklch(70% 0.18 25);
+
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+}
+
 .fresh-gradient {
   background-color: rgb(134, 239, 172);
   background-image: linear-gradient(

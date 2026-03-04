@@ -1,5 +1,6 @@
 import { hashPassword, verifyPassword } from "./password.ts";
 import type { AuthProvider } from "./provider.ts";
+import { getSessionTtlMs } from "./session.ts";
 import {
   hasPermission,
   type Permission,
@@ -8,7 +9,6 @@ import {
   toPublicUser,
   type UserRole,
 } from "./types.ts";
-import { getSessionTtlMs } from "./session.ts";
 
 export class AuthService {
   constructor(private provider: AuthProvider) {}

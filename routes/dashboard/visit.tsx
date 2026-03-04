@@ -3,7 +3,7 @@ import { requireRole } from "@/lib/auth/guards.ts";
 
 function VisitPage({ state }) {
   return (
-    <main class="p-8">
+    <main class="min-h-screen bg-base-100 text-base-content p-8">
       <h1 class="text-3xl font-bold">Bienvenido, Visitante</h1>
       <p class="mt-2">
         Hola{" "}
