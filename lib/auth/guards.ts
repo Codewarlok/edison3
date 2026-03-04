@@ -1,8 +1,17 @@
-import { authService } from "@/lib/auth/runtime.ts";
-import type { UserRole } from "@/lib/auth/types.ts";
-import type { State } from "@/utils.ts";
+import {
+  hasPermission,
+  type Permission,
+  type PublicUser,
+  type UserRole,
+} from "@/lib/auth/types.ts";
 
-export function requireAuth(state: State): Response | null {
+export interface AuthState {
+  auth: {
+    user: PublicUser | null;
+  };
+}
+
+export function requireAuth(state: AuthState): Response | null {
   if (!state.auth.user) {
     return new Response(null, {
       status: 302,
@@ -12,7 +21,7 @@ export function requireAuth(state: State): Response | null {
   return null;
 }
 
-export function requireRole(state: State, role: UserRole): Response | null {
+export function requireRole(state: AuthState, role: UserRole): Response | null {
   const user = state.auth.user;
   if (!user) {
     return new Response(null, {
@@ -22,13 +31,19 @@ export function requireRole(state: State, role: UserRole): Response | null {
   }
 
   if (!user.roles.includes(role)) {
-    return new Response("Forbidden", { status: 403 });
+    return new Response(null, {
+      status: 302,
+      headers: { location: `/forbidden?required=${encodeURIComponent(role)}` },
+    });
   }
 
   return null;
 }
 
-export function requirePermission(state: State, permission: Parameters<typeof authService.can>[1]): Response | null {
+export function requirePermission(
+  state: AuthState,
+  permission: Permission,
+): Response | null {
   const user = state.auth.user;
   if (!user) {
     return new Response(null, {
@@ -37,8 +52,11 @@ export function requirePermission(state: State, permission: Parameters<typeof au
     });
   }
 
-  if (!authService.can(user, permission)) {
-    return new Response("Forbidden", { status: 403 });
+  if (!hasPermission(user, permission)) {
+    return new Response(null, {
+      status: 302,
+      headers: { location: "/forbidden" },
+    });
   }
 
   return null;

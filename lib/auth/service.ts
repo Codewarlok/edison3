@@ -1,14 +1,23 @@
 import { hashPassword, verifyPassword } from "./password.ts";
 import type { AuthProvider } from "./provider.ts";
-import { hasPermission, toPublicUser, type Permission, type PublicUser, type SessionWithUser, type UserRole } from "./types.ts";
-
-export const AUTH_COOKIE = "edison_session";
-export const SESSION_TTL_MS = 1000 * 60 * 60 * 12;
+import {
+  hasPermission,
+  type Permission,
+  type PublicUser,
+  type SessionWithUser,
+  toPublicUser,
+  type UserRole,
+} from "./types.ts";
+import { getSessionTtlMs } from "./session.ts";
 
 export class AuthService {
   constructor(private provider: AuthProvider) {}
 
-  async bootstrapAdmin(email: string, password: string, displayName = "Admin"): Promise<void> {
+  async bootstrapAdmin(
+    email: string,
+    password: string,
+    displayName = "Admin",
+  ): Promise<void> {
     const existing = await this.provider.getUserByEmail(email);
     if (existing) return;
     const passwordHash = await hashPassword(password);
@@ -20,20 +29,31 @@ export class AuthService {
     });
   }
 
-  async createUser(input: { email: string; displayName: string; password: string; roles: UserRole[] }) {
+  async createUser(input: {
+    email: string;
+    displayName: string;
+    password: string;
+    roles: UserRole[];
+  }) {
     const passwordHash = await hashPassword(input.password);
     const user = await this.provider.createUser({ ...input, passwordHash });
     return toPublicUser(user);
   }
 
-  async login(email: string, password: string): Promise<{ sessionId: string; user: PublicUser } | null> {
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ sessionId: string; user: PublicUser } | null> {
     const user = await this.provider.getUserByEmail(email);
     if (!user || !user.isActive) return null;
 
     const ok = await verifyPassword(password, user.passwordHash);
     if (!ok) return null;
 
-    const session = await this.provider.createSession(user.id, SESSION_TTL_MS);
+    const session = await this.provider.createSession(
+      user.id,
+      getSessionTtlMs(),
+    );
     return { sessionId: session.id, user: toPublicUser(user) };
   }
 
