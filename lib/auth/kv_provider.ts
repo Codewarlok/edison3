@@ -1,5 +1,14 @@
+import { AuditEventsRepository } from "@/lib/audit/repo_audit_events.ts";
+import type { CreateAuditEventInput } from "@/lib/audit/types.ts";
 import type { AuthProvider, CreateUserInput } from "./provider.ts";
-import type { AuthUser, SessionRecord, UserRole } from "./types.ts";
+import { SessionsRepository } from "./repo_sessions.ts";
+import { UsersRepository } from "./repo_users.ts";
+import type {
+  AuditEvent as AuthAuditEvent,
+  AuthUser,
+  SessionRecord,
+  UserRole,
+} from "./types.ts";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -10,103 +19,145 @@ function uuid(): string {
 }
 
 export class KvAuthProvider implements AuthProvider {
-  constructor(private kv: Deno.Kv) {}
+  private users: UsersRepository;
+  private sessions: SessionsRepository;
+  private audit: AuditEventsRepository;
 
-  private userKey(id: string) {
-    return ["codex", "auth", "users", id] as const;
-  }
-
-  private userEmailKey(email: string) {
-    return ["codex", "auth", "users_by_email", email.toLowerCase()] as const;
-  }
-
-  private sessionKey(id: string) {
-    return ["codex", "auth", "sessions", id] as const;
+  constructor(private kv: Deno.Kv) {
+    this.users = new UsersRepository(kv);
+    this.sessions = new SessionsRepository(kv);
+    this.audit = new AuditEventsRepository(kv);
   }
 
   async getUserByEmail(email: string): Promise<AuthUser | null> {
-    const byEmail = await this.kv.get<string>(this.userEmailKey(email));
-    if (!byEmail.value) return null;
-    return await this.getUserById(byEmail.value);
+    return await this.users.getByEmail(email);
   }
 
   async getUserById(id: string): Promise<AuthUser | null> {
-    const row = await this.kv.get<AuthUser>(this.userKey(id));
-    return row.value ?? null;
+    return await this.users.getById(id);
   }
 
   async listUsers(): Promise<AuthUser[]> {
-    const out: AuthUser[] = [];
-    for await (const row of this.kv.list<AuthUser>({ prefix: ["codex", "auth", "users"] })) {
-      out.push(row.value);
-    }
-    out.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-    return out;
+    return await this.users.list();
   }
 
   async createUser(input: CreateUserInput): Promise<AuthUser> {
-    const existing = await this.getUserByEmail(input.email);
-    if (existing) throw new Error("USER_ALREADY_EXISTS");
-
-    const id = uuid();
     const timestamp = nowIso();
-    const user: AuthUser = {
-      id,
-      email: input.email.toLowerCase(),
+    const user = await this.users.create({
+      id: uuid(),
+      email: input.email,
       displayName: input.displayName,
       passwordHash: input.passwordHash,
       roles: input.roles,
-      isActive: true,
       createdAt: timestamp,
       updatedAt: timestamp,
-    };
+    });
 
-    const res = await this.kv.atomic()
-      .check({ key: this.userEmailKey(input.email), versionstamp: null })
-      .set(this.userKey(id), user)
-      .set(this.userEmailKey(input.email), id)
-      .commit();
+    await this.writeAudit({
+      id: uuid(),
+      ts: timestamp,
+      actorType: "system",
+      action: "user.created",
+      targetType: "user",
+      targetId: user.id,
+      result: "success",
+      metadata: { email: user.email, roles: user.roles },
+    });
 
-    if (!res.ok) throw new Error("CREATE_USER_CONFLICT");
     return user;
   }
 
   async updateUserRoles(userId: string, roles: UserRole[]): Promise<void> {
-    const row = await this.getUserById(userId);
-    if (!row) throw new Error("USER_NOT_FOUND");
-    row.roles = roles;
-    row.updatedAt = nowIso();
-    await this.kv.set(this.userKey(userId), row);
+    const timestamp = nowIso();
+    await this.users.updateRoles(userId, roles, timestamp);
+    await this.writeAudit({
+      id: uuid(),
+      ts: timestamp,
+      actorType: "system",
+      action: "user.roles.updated",
+      targetType: "user",
+      targetId: userId,
+      result: "success",
+      metadata: { roles },
+    });
   }
 
   async deleteUser(userId: string): Promise<void> {
-    const row = await this.getUserById(userId);
-    if (!row) return;
-    await this.kv.atomic()
-      .delete(this.userKey(userId))
-      .delete(this.userEmailKey(row.email))
-      .commit();
+    await this.users.delete(userId);
+    await this.sessions.deleteByUser(userId);
+    await this.writeAudit({
+      id: uuid(),
+      ts: nowIso(),
+      actorType: "system",
+      action: "user.deleted",
+      targetType: "user",
+      targetId: userId,
+      result: "success",
+    });
   }
 
   async createSession(userId: string, ttlMs: number): Promise<SessionRecord> {
     const createdAt = new Date();
     const expiresAt = new Date(createdAt.getTime() + ttlMs);
-    const record: SessionRecord = {
+    const session = await this.sessions.create({
       id: uuid(),
       userId,
       createdAt: createdAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
-    };
-    await this.kv.set(this.sessionKey(record.id), record, { expireIn: ttlMs });
-    return record;
+      ttlMs,
+    });
+
+    await this.writeAudit({
+      id: uuid(),
+      ts: nowIso(),
+      actorType: "user",
+      actorUserId: userId,
+      action: "auth.login.success",
+      targetType: "session",
+      targetId: session.id,
+      result: "success",
+    });
+
+    return session;
   }
 
   async getSession(sessionId: string): Promise<SessionRecord | null> {
-    const row = await this.kv.get<SessionRecord>(this.sessionKey(sessionId));
-    return row.value ?? null;
+    return await this.sessions.getById(sessionId);
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    await this.kv.delete(this.sessionKey(sessionId));
+    const current = await this.sessions.getById(sessionId);
+    await this.sessions.delete(sessionId);
+
+    if (current) {
+      await this.writeAudit({
+        id: uuid(),
+        ts: nowIso(),
+        actorType: "user",
+        actorUserId: current.userId,
+        action: "auth.logout",
+        targetType: "session",
+        targetId: sessionId,
+        result: "success",
+      });
+    }
+  }
+
+  async createAuditEvent(event: AuthAuditEvent): Promise<void> {
+    await this.writeAudit({
+      id: event.id,
+      ts: event.timestamp,
+      actorType: event.userId ? "user" : "system",
+      actorUserId: event.userId,
+      action: event.type,
+      targetType: event.sessionId ? "session" : undefined,
+      targetId: event.sessionId,
+      result: "success",
+      metadata: event.meta,
+    });
+  }
+
+  private async writeAudit(input: CreateAuditEventInput): Promise<void> {
+    await this.audit.append(input);
   }
 }
