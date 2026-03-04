@@ -1,71 +1,105 @@
-# QA Dev Re-Audit Report (post-hotfix)
+# QA Dev Audit Report — Auth/RBAC
 
-- **Fecha:** 2026-03-04 (America/Santiago)
-- **Branch auditada:** `dev` @ `192912d`
-- **QA branch de entrega:** `nanai-qa-auth-rbac-e2e`
-- **Veredicto final:** **NO-GO**
+- Fecha/hora ejecución: 2026-03-04 19:08:45 -0300
+- Rama objetivo solicitada: `dev`
+- Rama auditada: `dev` (HEAD local `192912d`), con `origin/dev` actualizado (`b27d42e`).
+- Rama de evidencia QA (commit/push): `nanai-qa-auth-rbac-e2e`
+- Entorno: local (`http://localhost:5173`)
 
-## 1) Preparación
+## 1) Preparación de rama
 
-- Checkout y actualización de `dev` ejecutada con éxito (`git pull --rebase origin dev` -> fast-forward a `192912d`).
-- Seed de usuarios ejecutado:
-  - `admin@edison.local / admin123`
-  - `analyst@edison.local / analyst123`
+```bash
+git fetch origin
+git checkout dev
+git pull --ff-only origin dev
+```
 
-## 2) Matriz mínima auth/RBAC
+Resultado:
+- `Already up to date.`
 
-Base URL validada: `http://localhost:5173`
+## 2) Auditoría funcional mínima
 
-| Caso | Esperado | Resultado | Evidencia |
-|---|---:|---:|---|
-| Login admin | 200 | ✅ 200 | `POST /api/auth/login` |
-| Login analyst | 200 | ✅ 200 | `POST /api/auth/login` |
-| Login inválido | 401 | ✅ 401 | `POST /api/auth/login` (password incorrecta) |
-| `me` con cookie válida | 200 | ✅ 200 | `GET /api/auth/me` con cookie admin |
-| Logout | 200 | ✅ 200 | `POST /api/auth/logout` |
-| `me` post-logout | 401 | ✅ 401 | `GET /api/auth/me` tras logout |
-| Admin `/admin/users` permitido (sin redirect a login) | 200/no login redirect | ❌ **500** | `GET /admin/users` con cookie admin -> `Internal server error` |
-| Analyst `/admin/users` denegado | redirect/forbidden | ✅ 302 | `Location: /forbidden?required=admin` |
+Comandos base ejecutados:
 
-### Hallazgo crítico en `/admin/users` (admin)
+```bash
+deno task users:seed
+nohup deno task dev
 
-Error en runtime:
+# checks HTTP con curl
+POST /api/auth/login (admin)
+POST /api/auth/login (analyst)
+POST /api/auth/login (inválido)
+GET  /api/auth/me (cookie válida)
+GET  /admin/users (admin)
+GET  /admin/users (analyst)
+POST /api/auth/logout
+GET  /api/auth/me (post-logout)
+```
 
-- `Error: No arguments passed to: ctx.render()`
-- Origen: `routes/admin/users.tsx` en handler `GET`, se llama `ctx.render()` sin props.
+Resultados observados:
 
-Impacto:
+- ✅ `login admin` = **200**
+- ✅ `login analyst` = **200**
+- ✅ `login inválido` = **401**
+- ✅ `me con cookie válida` = **200**
+- ✅ `logout` = **200**
+- ✅ `me post-logout` = **401**
+- ❌ `admin acceso a /admin/users permitido` = **500** (esperado permitido/200)
+- ✅ `analyst acceso a /admin/users denegado` = **302** (denegado)
 
-- Usuario admin autenticado no puede acceder a pantalla `/admin/users`.
-- Incumple criterio de aceptación RBAC de acceso permitido a admin.
+### Evidencia de error bloqueante `/admin/users` con admin
 
-## 3) Theme toggle (persistencia al recargar)
+Respuesta HTTP:
+- `HTTP/1.1 500 Internal Server Error`
 
-### Estado de validación
+Log runtime relevante:
 
-- **Implementación observada en código:**
-  - `islands/ThemeToggle.tsx` guarda preferencia en `localStorage` (`edison-theme`) y actualiza `data-theme`.
-  - `routes/_app.tsx` incluye script de bootstrap que reaplica tema guardado al cargar.
-- **Validación manual UI real:** **parcial/no completada plenamente en esta corrida**.
-  - El browser tool de OpenClaw no estuvo disponible en esta sesión.
-  - Se validó la lógica de persistencia por revisión directa de código, pero falta evidencia visual interactiva (click + reload en navegador controlado por herramienta).
+```text
+Error: No arguments passed to: ctx.render()
+    at Context.render (.../@fresh/core/2.2.0/src/context.ts:152:13)
+    at GET (/home/dio/.openclaw/workspace/tmp/edison3/routes/admin/routes/admin/users.tsx:9:16)
+```
 
-## 4) Checks razonables (lint/test auth)
+## 3) Build SSR + checks base
 
-- `deno test lib/auth/*_test.ts` -> ✅ **7 passed / 0 failed**
-- Lint focalizado (`deno lint ...`) -> ❌ falla existente:
-  - `lib/auth/runtime.ts`: regla `require-await` en `createAuditEvent` (método `async` sin `await`).
+### SSR build
 
-## 5) Bloqueadores remanentes
+```bash
+deno task build
+```
 
-1. **CRÍTICO (GO blocker):** `/admin/users` retorna 500 para admin autenticado (`ctx.render()` sin argumentos).
-2. **Calidad (no funcional auth core, pero pendiente):** lint falla por `require-await` en `lib/auth/runtime.ts`.
-3. **Evidencia UI incompleta en esta ejecución:** falta prueba manual interactiva capturada del theme toggle (click + reload) por indisponibilidad de browser tool.
+Resultado:
+- ✅ Build client + SSR completado correctamente.
 
-## 6) Conclusión
+### Lint
 
-- Auth API core (login/me/logout) quedó **estable** en esta corrida.
-- RBAC para analyst en `/admin/users` (denegación) quedó **correcto**.
-- Acceso admin a `/admin/users` está **roto (500)**.
+```bash
+deno lint .
+```
 
-# **VEREDICTO: NO-GO**
+Resultado:
+- ❌ Falla lint (`require-await`) en `lib/auth/runtime.ts:46`:
+  - `Async method 'createAuditEvent' has no 'await' expression`
+
+### Tests auth relevantes
+
+```bash
+deno test lib/auth/password_test.ts lib/auth/types_test.ts lib/auth/guards_test.ts
+```
+
+Resultado:
+- ✅ `7 passed | 0 failed`
+
+## 4) Veredicto final
+
+## **NO-GO**
+
+Razones:
+1. Criterio funcional obligatorio incumplido: **admin no puede acceder correctamente a `/admin/users`** (500 interno).
+2. Check base incumplido: **lint falla** en `lib/auth/runtime.ts`.
+
+## 5) Recomendaciones inmediatas
+
+1. Corregir handler `GET` en `routes/admin/routes/admin/users.tsx` (uso de `ctx.render()` sin argumentos válidos).
+2. Corregir lint `require-await` en `lib/auth/runtime.ts` (`createAuditEvent`).
+3. Re-ejecutar esta misma matriz QA en `dev` tras el fix para emitir nuevo dictamen GO/NO-GO.
