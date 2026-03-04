@@ -46,3 +46,30 @@ Para agregar otro tema, duplicar un bloque:
 
 Luego, permitir ese nombre en la lógica de `ThemeToggle` si quieres que sea
 seleccionable desde UI.
+
+## Hotfix (compatibilidad login/theming con `dev`)
+
+Fecha: 2026-03-04
+
+- Se agregó `lib/auth/session.ts` (alineado con `dev`) con:
+  - `AUTH_COOKIE`
+  - `getSessionTtlMs()` (lee `EDISON_SESSION_TTL_MS` con fallback seguro)
+  - `buildSessionCookie()` / `clearSessionCookie()`
+  - `getCookieValue()`
+- `routes/login.tsx` dejó de usar imports obsoletos desde `lib/auth/service.ts`
+  y ahora usa helpers de `lib/auth/session.ts`.
+- `routes/api/auth/login.ts` y `routes/api/auth/logout.ts` también migraron a
+  helpers de `session.ts` para un formato de cookie único y consistente.
+- `lib/auth/service.ts` ya no exporta `AUTH_COOKIE`/`SESSION_TTL_MS`; ahora
+  calcula TTL vía `getSessionTtlMs()` al crear sesión.
+- `ThemeToggle` DaisyUI se mantiene sin cambios funcionales y compatible con SSR
+  (estado inicial seguro + aplicación de tema en cliente).
+
+### Evidencia rápida
+
+Comandos ejecutados en la rama `nanai-frontend-landing-login-dashboard`:
+
+- `deno fmt lib/auth/session.ts lib/auth/service.ts routes/login.tsx routes/api/auth/login.ts routes/api/auth/logout.ts docs/theme-toggle-daisyui.md` ✅
+- `deno lint lib/auth/session.ts lib/auth/service.ts routes/login.tsx routes/api/auth/login.ts routes/api/auth/logout.ts islands/ThemeToggle.tsx routes/_app.tsx` ✅
+- `deno task check` ⚠️ falla por archivos no formateados preexistentes fuera de este hotfix (docs/rutas no tocadas).
+- `deno task build` ⚠️ falla por import faltante preexistente `lib/auth/audit.ts` referenciado desde `lib/auth/runtime.ts`.
